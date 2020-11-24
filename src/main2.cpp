@@ -30,15 +30,21 @@ int main(int argc, char *argv[])
         return 0;
     }
     char insbuff[5];
-    char keybuff[20];
+    char keybuff1[20], keybuff2[20];
     char valbuff[129];
+    const char *PUT = "PUT";
+    const char *GET = "GET";
+    const char *SCAN = "SCAN";
     idx = 0;
     while (fscanf(input, "%s", insbuff) != EOF) {
-        if (strcmp(insbuff, "GET") == 0) {
-            fscanf(input, "%s", keybuff);
-        } else {
-            fscanf(input, "%s", keybuff);
+        if (strcmp(insbuff, PUT) == 0) {
+            fscanf(input, "%s", keybuff1);
             fscanf(input, "%s", valbuff);
+        } else if (strcmp(insbuff, GET) == 0){
+            fscanf(input, "%s", keybuff1);
+        } else {
+            fscanf(input, "%s", keybuff1);
+            fscanf(input, "%s", keybuff2);
         }
     }
     end = tvgetf();
