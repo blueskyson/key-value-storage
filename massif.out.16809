@@ -1,0 +1,117 @@
+desc: (none)
+cmd: ./F74076027 ../1.input
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=2210216
+mem_heap_B=72704
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=2211392
+mem_heap_B=72719
+mem_heap_extra_B=17
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=2211717
+mem_heap_B=72751
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=2211768
+mem_heap_B=72783
+mem_heap_extra_B=33
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=2211838
+mem_heap_B=72815
+mem_heap_extra_B=41
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=2211908
+mem_heap_B=72847
+mem_heap_extra_B=49
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=2211974
+mem_heap_B=72879
+mem_heap_extra_B=57
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=2578059
+mem_heap_B=73903
+mem_heap_extra_B=65
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=2587784
+mem_heap_B=73903
+mem_heap_extra_B=65
+mem_stacks_B=0
+heap_tree=peak
+n3: 73903 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 72704 0x48F8C19: ??? (in /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28)
+  n1: 72704 0x4011B89: call_init.part.0 (dl-init.c:72)
+   n1: 72704 0x4011C90: call_init (dl-init.c:30)
+    n1: 72704 0x4011C90: _dl_init (dl-init.c:119)
+     n1: 72704 0x4001139: ??? (in /usr/lib/x86_64-linux-gnu/ld-2.31.so)
+      n1: 72704 0x1: ???
+       n1: 72704 0x1FFF000116: ???
+        n0: 72704 0x1FFF000122: ???
+ n1: 1024 0x4AB7E83: _IO_file_doallocate (filedoalloc.c:101)
+  n1: 1024 0x4AC804F: _IO_doallocbuf (genops.c:347)
+   n1: 1024 0x4AC70AF: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:745)
+    n1: 1024 0x4AC5834: _IO_new_file_xsputn (fileops.c:1244)
+     n1: 1024 0x4AC5834: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1197)
+      n1: 1024 0x4AAD92C: __vfprintf_internal (vfprintf-internal.c:1687)
+       n1: 1024 0x4A97EBE: printf (printf.c:33)
+        n0: 1024 0x10990C: main (in /home/lin/key-value-storage/F74076027)
+ n0: 175 in 4 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=10
+#-----------
+time=2587784
+mem_heap_B=1199
+mem_heap_extra_B=57
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=11
+#-----------
+time=2589417
+mem_heap_B=175
+mem_heap_extra_B=49
+mem_stacks_B=0
+heap_tree=empty

@@ -4,9 +4,20 @@
 #include <sys/mman.h>  //mmap
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "bench.h"
 #include "kvs.h"
+
+unsigned long long  fast_atoull(const char *str)
+{
+    unsigned long long val = 0;
+    while(*str)
+    {
+        val = (val << 1) + (val << 3) + (*(str++) - 48);
+    }
+    return val;
+}
 
 int main(int argc, char *argv[])
 {
@@ -56,6 +67,7 @@ int main(int argc, char *argv[])
         idx++;
         int kidx1 = 0, kidx2 = 0;
         switch (insbuff) {
+            char *pEnd;
             case PUT:
                 while (input_map[idx] != ' ') {
                     keybuff1[kidx1++] = input_map[idx++];
@@ -67,6 +79,9 @@ int main(int argc, char *argv[])
                 }
                 valbuff[128] = '\0';
                 idx++;
+                fast_atoull(keybuff1);
+                //strtoull(keybuff1, &pEnd, 10);
+                //memtable.put(strtoull(keybuff1, &pEnd, 10), valbuff);
             break;
 
             case GET:
@@ -91,9 +106,10 @@ int main(int argc, char *argv[])
                 keybuff2[kidx2] = '\0';
             break;
         }
-
-        
     }
+
+    munmap(input_map, s.st_size);
+    close(fd);
 
     end = tvgetf();
     printf("\ntime: %lf\n", end - start);
