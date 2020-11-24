@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     const char GET = 'G';
     const char SCAN = 'S';
 
-    SkipList memtable;
+    SkipList memtable(4);
     idx = 0;
     while (idx < s.st_size) {
         insbuff = input_map[idx++];
@@ -79,9 +79,8 @@ int main(int argc, char *argv[])
                 }
                 valbuff[128] = '\0';
                 idx++;
-                fast_atoull(keybuff1);
                 //strtoull(keybuff1, &pEnd, 10);
-                //memtable.put(strtoull(keybuff1, &pEnd, 10), valbuff);
+                memtable.put(fast_atoull(keybuff1), valbuff);
             break;
 
             case GET:
