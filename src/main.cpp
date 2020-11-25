@@ -59,7 +59,11 @@ int main(int argc, char *argv[])
 
     SkipList memtable(4);
     idx = 0;
-    while (idx < s.st_size) {
+
+    int debug = 10; //
+
+    while (idx < s.st_size && debug) {
+        debug--; //
         insbuff = input_map[idx++];
         while (input_map[idx] != ' ') {
             idx++;
