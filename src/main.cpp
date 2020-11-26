@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     SkipList memtable(4);
     idx = 0;
 
-    int debug = 10; //
+    int debug = 153; //
 
     while (idx < s.st_size && debug) {
         debug--; //
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         idx++;
         int kidx1 = 0, kidx2 = 0;
         switch (insbuff) {
-            char *pEnd;
+            char* output_str;
             case PUT:
                 while (input_map[idx] != ' ') {
                     keybuff1[kidx1++] = input_map[idx++];
@@ -93,6 +93,12 @@ int main(int argc, char *argv[])
                 }
                 idx++;
                 keybuff1[kidx1] = '\0';
+                output_str = memtable.get(fast_atoull(keybuff1));
+                if (output_str == nullptr) {
+                    puts("EMPTY");
+                } else {
+                    puts(output_str);
+                }
             break;
 
             case SCAN:

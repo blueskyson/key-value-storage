@@ -46,7 +46,7 @@ public:
                 cursor[level] = cursor[level]->right;
             }
         }
-        while (cursor[0]->right != nullptr && k >*(cursor[level]->right->key))
+        while (cursor[0]->right != nullptr && k >= *(cursor[level]->right->key))
             cursor[0] = cursor[0]->right;
         
         /* if the same key, then replace the value */
@@ -82,18 +82,55 @@ public:
         }
     }
 
-    char* get(unsigned long long k);
+    char* get(unsigned long long k) {
+        //printf("search for: %llu\n", k);
+        //show();
+        int level = level_num - 1;
+        node* cur;
+        cur = head[level];
+        while (level) {
+            if (cur->right == nullptr || k < *(cur->right->key)) {
+                cur = cur->down;
+                level--;
+            } else {
+                cur = cur->right;
+                //printf("%d %llu\n", level, *(cur->key));
+            }
+        }
+        while (cur->right != nullptr && k >= *(cur->right->key)) {
+            cur = cur->right;
+            //printf("%d %llu\n", level, *(cur->key));
+        }
+
+        if (cur->key == nullptr) {
+            //printf("NULL\n");
+            return nullptr;
+        }
+
+        if (*(cur->key) != k) {
+            //printf("key: %llu\n", *(cur->key));
+            return nullptr;
+        }
+        return cur->value;
+    }
     char** scan(unsigned long long k1, unsigned long long k2);
     void show() {
         node* cursor[level_num];
         for (int i = 0; i < level_num; i++) {
             cursor[i] = head[i]->right;
         }
-        while(cursor[0]) {
-            printf ("%llu ", *(cursor[0]->key));
+        while(cursor[0] != nullptr) {
+            printf ("%20llu  X ", *(cursor[0]->key));
+            for (int i = 1; i < level_num; i++) {
+                if (cursor[i] && *(cursor[i]->key) == *(cursor[0]->key)) {
+                    putchar('X');
+                    putchar(' ');
+                    cursor[i] = cursor[i]->right;
+                }
+            }
             cursor[0] = cursor[0]->right;
+            puts("");
         }
-        puts("");
         puts("");
     }
 };
