@@ -9,11 +9,11 @@
 #include "bench.h"
 #include "kvs.h"
 
+/* turn a char array into unsigned long long */
 unsigned long long  fast_atoull(const char *str)
 {
     unsigned long long val = 0;
-    while(*str)
-    {
+    while (*str) {
         val = (val << 1) + (val << 3) + (*(str++) - 48);
     }
     return val;
@@ -21,22 +21,13 @@ unsigned long long  fast_atoull(const char *str)
 
 int main(int argc, char *argv[])
 {
-    char *in_file = argv[1];
-    char *out_file = new char[15];
-    unsigned long long idx = strlen(in_file) - 5;
-    while (idx != 0 && in_file[idx - 1] != '/') {
-        idx--;
-    }
-    int idx2 = 0;
-    while (in_file[idx] != '.') {
-        out_file[idx2++] = in_file[idx++];
-    }
-    memcpy(out_file + idx2, ".output\0", 8);
-
     double start, end; //
     start = tvgetf();  //
+    DataBase database(4, argv[1]);
+
+    /* open input file */
     struct stat s;
-    int fd = open(in_file, O_RDONLY);
+    int fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
         puts("cannot open iniput file");
         return 0;
@@ -47,7 +38,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     char *input_map = (char*) mmap(0, s.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    const char ENDCHAR = (char) 0x0a;
     input_map[s.st_size] = ENDCHAR;
 
     char insbuff;
@@ -57,10 +47,8 @@ int main(int argc, char *argv[])
     const char GET = 'G';
     const char SCAN = 'S';
 
-    SkipList memtable(4);
-    idx = 0;
-
-    int debug = 153; //
+    unsigned long long idx = 0;
+    int debug = 168; //
 
     while (idx < s.st_size && debug) {
         debug--; //
@@ -83,8 +71,7 @@ int main(int argc, char *argv[])
                 }
                 valbuff[128] = '\0';
                 idx++;
-                //strtoull(keybuff1, &pEnd, 10);
-                memtable.put(fast_atoull(keybuff1), valbuff);
+                database.put(fast_atoull(keybuff1), valbuff);
             break;
 
             case GET:
@@ -93,12 +80,7 @@ int main(int argc, char *argv[])
                 }
                 idx++;
                 keybuff1[kidx1] = '\0';
-                output_str = memtable.get(fast_atoull(keybuff1));
-                if (output_str == nullptr) {
-                    puts("EMPTY");
-                } else {
-                    puts(output_str);
-                }
+                database.get(fast_atoull(keybuff1));
             break;
 
             case SCAN:
@@ -113,10 +95,11 @@ int main(int argc, char *argv[])
                 }
                 idx++;
                 keybuff2[kidx2] = '\0';
+                database.scan(fast_atoull(keybuff1), fast_atoull(keybuff2));
             break;
         }
     }
-
+    database.save2();
     munmap(input_map, s.st_size);
     close(fd);
 

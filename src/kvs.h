@@ -1,9 +1,17 @@
 #include <time.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#define random() (rand() & 1)
+#include <fcntl.h>     //open
+#include <sys/mman.h>  //mmap
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-class SkipList {
+#define MAXTEXT 1000000
+#define FULLTEXE 999800
+const char ENDCHAR = (char) 0x0a;
+
+class DataBase {
 public:
     struct node {
         unsigned long long *key;
@@ -13,9 +21,15 @@ public:
     };
     short level_num;
     node **head;
+    char* in_file, *out_file, *txtbuff;
+    int out_fd;
+    size_t text_size;
 
-    SkipList(int l = 4)
+    DataBase(int l, char* in_name)
     {
+        srand(time(NULL));
+
+        /* create skip list */
         level_num = l;
         head = new node*[4];
         head[0] = new node;
@@ -29,11 +43,25 @@ public:
             head[i]->down = head[i - 1];
         }
         
-        srand(time(NULL));
+        /* generate output filename */
+        in_file = strdup(in_name);
+        out_file = new char[16];
+        int ii = strlen(in_file) - 5;
+        while (ii != 0 && in_file[ii - 1] != '/') {
+            ii--;
+        }
+        int idx2 = 0;
+        while (in_file[ii] != '.') {
+            out_file[idx2++] = in_file[ii++];
+        }
+        memcpy(out_file + idx2, ".output\0", 8);
+        
+        text_size = 0;
+        txtbuff = new char[MAXTEXT];
     }
-    
-    int randval();
-    void put(unsigned long long k, char* v) {
+
+    void put(unsigned long long k, char* v)
+    {
         /* searching */
         int level = level_num - 1;
         node* cursor[level_num];
@@ -67,10 +95,9 @@ public:
         cursor[0]->right = new_node0;
         cursor[0] = new_node0;
          
-        
         /* other levels */
         short cnt = 1;
-        while (cnt < level_num && randval()) {
+        while (cnt < level_num && (rand() & 1)) {
             node* new_node = new node;
             new_node->key = new_k;
             new_node->value = new_v;
@@ -82,9 +109,11 @@ public:
         }
     }
 
-    char* get(unsigned long long k) {
+    void get(unsigned long long k)
+    {
         //printf("search for: %llu\n", k);
         //show();
+        /* searching */
         int level = level_num - 1;
         node* cur;
         cur = head[level];
@@ -102,19 +131,62 @@ public:
             //printf("%d %llu\n", level, *(cur->key));
         }
 
-        if (cur->key == nullptr) {
-            //printf("NULL\n");
-            return nullptr;
+        if (cur->key == nullptr || *(cur->key) != k) {
+            memcpy(txtbuff + text_size, "\nEMPTY", 6);
+            text_size += 6;
+        } else {
+            txtbuff[text_size++] = '\n';
+            memcpy(txtbuff + text_size, cur->value, 128);
+            text_size += 128;
+        }
+    }
+
+    void scan(unsigned long long k1, unsigned long long k2)
+    {
+        /* searching */
+        int level = level_num - 1;
+        node* cur;
+        cur = head[level];
+        while (level) {
+            if (cur->right == nullptr || k1 < *(cur->right->key)) {
+                cur = cur->down;
+                level--;
+            } else {
+                cur = cur->right;
+            }
+        }
+        while (cur->right != nullptr && k1 >= *(cur->right->key)) {
+            cur = cur->right;
         }
 
-        if (*(cur->key) != k) {
-            //printf("key: %llu\n", *(cur->key));
-            return nullptr;
+        if (cur->key == nullptr) {
+            if (cur->right == nullptr) {
+                for (; k1 <= k2; k1++) {
+                    memcpy(txtbuff + text_size, "\nEMPTY", 6);
+                    text_size += 6;
+                }
+                return;
+            }
+            cur = cur->right;
+        } else if (k1 > *(cur->key)) {
+            cur = cur->right;
         }
-        return cur->value;
+
+        for (; k1 <= k2; k1++) {
+            if (k1 == *(cur->key)) {
+                txtbuff[text_size++] = '\n';
+                memcpy(txtbuff + text_size, cur->value, 128);
+                text_size += 128;
+                cur = cur->right;
+            } else {
+                memcpy(txtbuff + text_size, "\nEMPTY", 6);
+                text_size += 6;
+            }
+        }
     }
-    char** scan(unsigned long long k1, unsigned long long k2);
-    void show() {
+
+    void show()
+    {
         node* cursor[level_num];
         for (int i = 0; i < level_num; i++) {
             cursor[i] = head[i]->right;
@@ -133,9 +205,21 @@ public:
         }
         puts("");
     }
-};
 
-int SkipList::randval()
-{
-    return rand() & 1;
-}
+    void save() {
+        int fd = open(out_file, O_RDWR | O_CREAT, (mode_t)0600);
+        lseek(fd, text_size - 1, SEEK_SET);
+        write(fd, &ENDCHAR, 1);
+        char *map = (char*) mmap(0, text_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        memcpy(map, txtbuff + 1, text_size - 1);
+        msync(map, text_size, MS_SYNC);
+        munmap(map, text_size);
+        close(fd);
+    }
+
+    void save2() {
+        FILE *fp = fopen(out_file, "w");
+        fwrite(txtbuff + 1, 1, text_size - 1, fp);
+        fclose(fp);
+    }
+};
