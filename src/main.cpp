@@ -99,7 +99,10 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    database.save2();
+    // database.save();
+    // database.show();
+    // database.mem_to_disk();
+    // database.meta_to_disk();
     munmap(input_map, s.st_size);
     close(fd);
 

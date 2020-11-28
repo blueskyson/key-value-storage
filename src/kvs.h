@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define MAXTEXT 1000000
-#define FULLTEXE 999800
+#define FULLTEXT 999800
 const char ENDCHAR = (char) 0x0a;
 
 class DataBase {
@@ -19,8 +19,14 @@ public:
         node *right;
         node *down;
     };
+    struct meta {
+        unsigned long long start, end;
+        meta* next;
+    };
+
     short level_num;
     node **head;
+    meta *meta_head;
     char* in_file, *out_file, *txtbuff;
     int out_fd;
     size_t text_size;
@@ -31,6 +37,7 @@ public:
 
         /* create skip list */
         level_num = l;
+        meta_head = nullptr;
         head = new node*[4];
         head[0] = new node;
         head[0]->key = nullptr;
@@ -74,7 +81,7 @@ public:
                 cursor[level] = cursor[level]->right;
             }
         }
-        while (cursor[0]->right != nullptr && k >= *(cursor[level]->right->key))
+        while (cursor[0]->right != nullptr && k >= *(cursor[0]->right->key))
             cursor[0] = cursor[0]->right;
         
         /* if the same key, then replace the value */
@@ -207,19 +214,54 @@ public:
     }
 
     void save() {
-        int fd = open(out_file, O_RDWR | O_CREAT, (mode_t)0600);
-        lseek(fd, text_size - 1, SEEK_SET);
-        write(fd, &ENDCHAR, 1);
-        char *map = (char*) mmap(0, text_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        memcpy(map, txtbuff + 1, text_size - 1);
-        msync(map, text_size, MS_SYNC);
-        munmap(map, text_size);
-        close(fd);
-    }
-
-    void save2() {
         FILE *fp = fopen(out_file, "w");
         fwrite(txtbuff + 1, 1, text_size - 1, fp);
         fclose(fp);
+    }
+
+    void mem_to_disk() {
+        node* p = head[0]->right;
+        if (!p) {
+            return;    
+        }
+
+        meta *m;
+        if (meta_head == nullptr) {
+            meta_head = new meta;
+            meta_head->next = nullptr;
+            m = meta_head;
+        } else {
+            for (m = meta_head; m->next != nullptr; m = m->next);
+            m->next = new meta;
+            m = m->next;
+            m->next = nullptr;
+        }
+
+        m->start = *(p->key);
+        FILE *fp = fopen("storage/1", "wb");
+        for (; p->right; p = p->right) {
+            fwrite(p->key, 8, 1, fp);
+            fwrite(p->value, 1, 128, fp);
+        }
+        m->end = *(p->key);
+        fclose(fp);
+        
+    }
+
+    void meta_to_disk() {
+        meta* p = meta_head;
+        if (!p) {
+            return;    
+        }
+        FILE *fp = fopen("storage/0", "wb");
+        for (;p != nullptr; p = p->next) {
+            fwrite(&(p->start), 8, 1, fp);
+            fwrite(&(p->end), 8, 1, fp);
+        }
+        fclose(fp);
+    }
+
+    void get_from_disk(unsigned long long k) {
+        
     }
 };
