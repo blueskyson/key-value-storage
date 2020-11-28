@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 {
     double start, end; //
     start = tvgetf();  //
-    DataBase database(4, argv[1]);
+    DataBase database(argv[1]);
 
     /* open input file */
     struct stat s;

@@ -16,38 +16,29 @@ public:
     struct node {
         unsigned long long *key;
         char *value;
-        node *right;
-        node *down;
+        node *right[4];
     };
     struct meta {
         unsigned long long start, end;
         meta* next;
     };
 
-    short level_num;
-    node **head;
+    node *head;
     meta *meta_head;
     char* in_file, *out_file, *txtbuff;
     int out_fd;
     size_t text_size;
 
-    DataBase(int l, char* in_name)
+    DataBase(char* in_name)
     {
         srand(time(NULL));
 
         /* create skip list */
-        level_num = l;
         meta_head = nullptr;
-        head = new node*[4];
-        head[0] = new node;
-        head[0]->key = nullptr;
-        head[0]->right = nullptr;
-        head[0]->down = nullptr;
-        for (int i = 1; i < level_num; i++) {
-            head[i] = new node;
-            head[i]->key = nullptr;
-            head[i]->right = nullptr;
-            head[i]->down = head[i - 1];
+        head = new node;
+        for (int i = 0; i < 4; i++) {
+            head->key = nullptr;
+            head->right[i] = nullptr;
         }
         
         /* generate output filename */
@@ -70,19 +61,20 @@ public:
     void put(unsigned long long k, char* v)
     {
         /* searching */
-        int level = level_num - 1;
-        node* cursor[level_num];
-        cursor[level] = head[level];
+        int level = 3;
+        node* cursor[4];
+        cursor[3] = head;
+
         while(level) {
-            if (cursor[level]->right == nullptr || k < *(cursor[level]->right->key)) {
-                cursor[level-1] = cursor[level]->down;
+            if (cursor[level]->right[level] == nullptr || k < *(cursor[level]->right[level]->key)) {
+                cursor[level-1] = cursor[level];
                 level--;
             } else {
-                cursor[level] = cursor[level]->right;
+                cursor[level] = cursor[level]->right[level];
             }
         }
-        while (cursor[0]->right != nullptr && k >= *(cursor[0]->right->key))
-            cursor[0] = cursor[0]->right;
+        while (cursor[0]->right[0] != nullptr && k >= *(cursor[0]->right[0]->key))
+            cursor[0] = cursor[0]->right[0];
         
         /* if the same key, then replace the value */
         if (cursor[0]->key && *(cursor[0]->key) == k) {
@@ -94,24 +86,21 @@ public:
         char* new_v = strdup(v);
 
         /* level 0 */
-        node* new_node0 = new node;
-        new_node0->key = new_k;
-        new_node0->value = new_v;
-        new_node0->down = nullptr;
-        new_node0->right = cursor[0]->right;
-        cursor[0]->right = new_node0;
-        cursor[0] = new_node0;
+        node* new_node = new node;
+        new_node->key = new_k;
+        new_node->value = new_v;
+        new_node->right[0] = cursor[0]->right[0];
+        cursor[0]->right[0] = new_node;
+        cursor[0] = new_node;
          
         /* other levels */
+        new_node->right[1] = nullptr;
+        new_node->right[2] = nullptr;
+        new_node->right[3] = nullptr;
         short cnt = 1;
-        while (cnt < level_num && (rand() & 1)) {
-            node* new_node = new node;
-            new_node->key = new_k;
-            new_node->value = new_v;
-            new_node->down = cursor[cnt - 1];
-            new_node->right = cursor[cnt]->right;
-            cursor[cnt]->right = new_node;
-            cursor[cnt] = new_node;
+        while (cnt < 4 && (rand() & 1)) {
+            new_node->right[cnt] = cursor[cnt]->right[cnt];
+            cursor[cnt]->right[cnt] = new_node;
             cnt++;
         }
     }
@@ -121,20 +110,18 @@ public:
         //printf("search for: %llu\n", k);
         //show();
         /* searching */
-        int level = level_num - 1;
-        node* cur;
-        cur = head[level];
+        int level = 3;
+        node* cur = head;
         while (level) {
-            if (cur->right == nullptr || k < *(cur->right->key)) {
-                cur = cur->down;
+            if (cur->right[level] == nullptr || k < *(cur->right[level]->key)) {
                 level--;
             } else {
-                cur = cur->right;
+                cur = cur->right[level];
                 //printf("%d %llu\n", level, *(cur->key));
             }
         }
-        while (cur->right != nullptr && k >= *(cur->right->key)) {
-            cur = cur->right;
+        while (cur->right[0] != nullptr && k >= *(cur->right[0]->key)) {
+            cur = cur->right[0];
             //printf("%d %llu\n", level, *(cur->key));
         }
 
@@ -151,32 +138,31 @@ public:
     void scan(unsigned long long k1, unsigned long long k2)
     {
         /* searching */
-        int level = level_num - 1;
+        int level = 3;
         node* cur;
-        cur = head[level];
+        cur = head;
         while (level) {
-            if (cur->right == nullptr || k1 < *(cur->right->key)) {
-                cur = cur->down;
+            if (cur->right[level] == nullptr || k1 < *(cur->right[level]->key)) {
                 level--;
             } else {
-                cur = cur->right;
+                cur = cur->right[level];
             }
         }
-        while (cur->right != nullptr && k1 >= *(cur->right->key)) {
-            cur = cur->right;
+        while (cur->right[0] != nullptr && k1 >= *(cur->right[0]->key)) {
+            cur = cur->right[0];
         }
 
         if (cur->key == nullptr) {
-            if (cur->right == nullptr) {
+            if (cur->right[0] == nullptr) {
                 for (; k1 <= k2; k1++) {
                     memcpy(txtbuff + text_size, "\nEMPTY", 6);
                     text_size += 6;
                 }
                 return;
             }
-            cur = cur->right;
+            cur = cur->right[0];
         } else if (k1 > *(cur->key)) {
-            cur = cur->right;
+            cur = cur->right[0];
         }
 
         for (; k1 <= k2; k1++) {
@@ -184,7 +170,7 @@ public:
                 txtbuff[text_size++] = '\n';
                 memcpy(txtbuff + text_size, cur->value, 128);
                 text_size += 128;
-                cur = cur->right;
+                cur = cur->right[0];
             } else {
                 memcpy(txtbuff + text_size, "\nEMPTY", 6);
                 text_size += 6;
@@ -194,20 +180,16 @@ public:
 
     void show()
     {
-        node* cursor[level_num];
-        for (int i = 0; i < level_num; i++) {
-            cursor[i] = head[i]->right;
-        }
-        while(cursor[0] != nullptr) {
-            printf ("%20llu  X ", *(cursor[0]->key));
-            for (int i = 1; i < level_num; i++) {
-                if (cursor[i] && *(cursor[i]->key) == *(cursor[0]->key)) {
-                    putchar('X');
-                    putchar(' ');
-                    cursor[i] = cursor[i]->right;
-                }
-            }
-            cursor[0] = cursor[0]->right;
+        node* cursor = head->right[0];
+        while(cursor != nullptr) {
+            printf ("%20llu  X", *(cursor->key));
+            if (cursor->right[1])
+                printf (" X");
+            if (cursor->right[2])
+                printf (" X");
+            if (cursor->right[3])
+                printf (" X");
+            cursor = cursor->right[0];
             puts("");
         }
         puts("");
@@ -220,7 +202,7 @@ public:
     }
 
     void mem_to_disk() {
-        node* p = head[0]->right;
+        node* p = head->right[0];
         if (!p) {
             return;    
         }
@@ -239,7 +221,7 @@ public:
 
         m->start = *(p->key);
         FILE *fp = fopen("storage/1", "wb");
-        for (; p->right; p = p->right) {
+        for (; p->right[0]; p = p->right[0]) {
             fwrite(p->key, 8, 1, fp);
             fwrite(p->value, 1, 128, fp);
         }
