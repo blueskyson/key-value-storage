@@ -1,12 +1,14 @@
 #include <stdio.h>
+#include <string.h>
 class bloom {
 public:
     unsigned int size, complement;
     unsigned char *table;
     bloom() {
-        size = 8192;
-        complement = 19; // 32 - bit size of size 
+        size = 65536 * 2;
+        complement = 15; // 32 - log2(size)
         table = new unsigned char[size];
+        memset(table, 0, size);
     }
 
     unsigned int djb2(const void *_str)
@@ -93,6 +95,5 @@ public:
             else
                 putchar('0');
         }
-        puts("");
     }
 };

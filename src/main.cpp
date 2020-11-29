@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>     //open
-#include <sys/mman.h>  //mmap
-#include <sys/stat.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include "bench.h"
 #include "kvs.h"
 
@@ -99,10 +91,10 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    // database.save();
-    // database.show();
-    // database.mem_to_disk();
-    // database.meta_to_disk();
+    database.save_output();
+    //database.show();
+    database.mem_to_disk();
+    database.meta_to_disk();
     munmap(input_map, s.st_size);
     close(fd);
 
