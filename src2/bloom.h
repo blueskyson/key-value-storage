@@ -1,0 +1,132 @@
+#ifndef STDIO_STDLIB_TIME_STRING
+#define STDIO_STDLIB_TIME_STRING
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#endif
+
+/* turn a char array into unsigned long long */
+unsigned long long fast_atoull(const char *str)
+{
+    unsigned long long val = 0;
+    while (*str) {
+        val = (val << 1) + (val << 3) + (*(str++) - 48);
+    }
+    return val;
+}
+
+class bloomfilter {
+public:
+    unsigned int size, complement;
+    unsigned char *table;
+    bloomfilter() {
+        size = 131072;
+        complement = 15; // 32 - log2(size)
+        table = new unsigned char[size];
+        memset(table, 0, size);
+    }
+
+    unsigned int djb2(const void *_str)
+    {
+        const char *str = (const char*)_str;
+        unsigned int hash = 5381;
+        char c;
+        for (int i = 0; i < 8; i++) {
+            c = str[i];
+            hash = ((hash << 5) + hash) + c;
+        }
+        return hash;
+    }
+
+    unsigned int jenkins(const void *_str)
+    {
+        const char *key = (const char*)_str;
+        unsigned int hash = 0;
+        for (int i = 0; i < 8; i++) {
+            hash += *key;
+            hash += (hash << 10);
+            hash ^= (hash >> 6);
+            key++;
+        }
+        hash += (hash << 3);
+        hash ^= (hash >> 11);
+        hash += (hash << 15);
+        return hash;
+    }
+
+    void bloom_add(unsigned long long *k) {
+        unsigned int hash;
+        hash = djb2(k);
+        table[hash >> complement] |= 0x80 >> (hash & 7);
+        hash = jenkins(k);
+        table[hash >> complement] |= 0x80 >> (hash & 7);
+    }
+
+    bool bloom_get(unsigned long long *k) {
+        unsigned int hash;
+        hash = djb2(k);
+        if (!(table[hash >> complement] & (0x80 >> (hash & 7)))) {
+            return false;
+        }
+        hash = jenkins(k);
+        if (!(table[hash >> complement] & (0x80 >> (hash & 7)))) {
+            return false;
+        }
+        return true;
+    }
+
+    void test_false_positive() {
+        unsigned long long *num = new unsigned long long;
+        double f = 0;
+        int all = 100000;
+        srand(time(NULL));
+        for (unsigned long long i = 0; i < all; i++) {
+            *num = rand();
+            if (bloom_get(num)) {
+                f++;
+            }
+            bloom_add(num);
+        }
+        printf("\nfalse positive: %lf\n", f / all);
+    }
+
+    void show(int start, int end) {
+        for (unsigned int i = start; i < end; i++) {
+            if (table[i] & 0x01)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x02)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x04)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x08)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x10)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x20)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x40)
+                putchar('1');
+            else
+                putchar('0');
+            if (table[i] & 0x80)
+                putchar('1');
+            else
+                putchar('0');
+            puts("");
+        }
+        puts("");
+    }
+};
