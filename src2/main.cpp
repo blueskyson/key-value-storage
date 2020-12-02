@@ -1,5 +1,6 @@
 #include "bench.h"
 #include "kvs.h"
+#include <pthread.h>
 
 int main(int argc, char *argv[])
 {
@@ -9,10 +10,8 @@ int main(int argc, char *argv[])
     
     /* read meta from disk */
     if (access("storage/0", F_OK) == 0) {
-        database.meta_from_disk();
-        database.mem_from_disk();
-        // test
         database.Meta.get_meta();
+        database.get_data();
         database.Meta.show();
     }
 
@@ -40,10 +39,16 @@ int main(int argc, char *argv[])
     unsigned long long idx = 0;
 
     /* read instructions */
-    int debug = 12;
-    while (idx < s.st_size && debug) {
-        getchar();
-        debug--;
+    int debug = 0;
+    while (idx < s.st_size && debug < 162) {
+        // char c;
+        // scanf("%c", &c);
+        // if (c == 'a') {
+        //     database.Meta.show_pages();
+        // }
+        
+        debug++;
+        //printf("ins: %d\n", debug);
         insbuff = input_map[idx++];
         while (input_map[idx] != ' ') {
             idx++;
@@ -68,10 +73,28 @@ int main(int argc, char *argv[])
                 database.put2(fast_atoull(keybuff1), valbuff);
                 if (database.key_num == MAXKEYS) {
                     database.flush_data();
+                    //database.Meta.show();
                 }
+                //printf("ins: %3d, put %s\n", debug, keybuff1);
+                break;
+            
+            case GET:
+                while (input_map[idx] != ENDCHAR) {
+                    keybuff1[kidx1++] = input_map[idx++];
+                }
+                idx++;
+                keybuff1[kidx1] = '\0';
+                char *str = database.get2(fast_atoull(keybuff1));
+                if (str != nullptr)
+                    printf("ins: %3d, %128s\n", debug, str);
+                else 
+                    printf("ins: %3d, EMPTY\n", debug);
             break;
         }
-        getchar();
+        //database.show();
     }
+    // database.show();
+    database.flush_data();
+    database.Meta.flush_meta();
     return 0;
 }

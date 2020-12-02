@@ -9,6 +9,7 @@
         "system_error": "cpp",
         "thread": "cpp",
         "typeindex": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "random": "cpp"
     }
 }
