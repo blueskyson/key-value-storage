@@ -15,27 +15,78 @@
 #define MAXTEXT 1000000
 #define MAXKEY_IN_PAGE 10
 #define FULLTEXT 999800
+#define MAXKEYS 10
 const char ENDCHAR = (char) 0x0a;
+
+struct node {
+    unsigned long long *key;
+    char *value;
+    node *right[4];
+};
+
+struct meta {
+    unsigned long long start, end;
+    int key_num, page;
+    bloomfilter* bloom;
+    meta* next;
+};
+
+class MetaData {
+public:
+    meta *head, *tail, *prev_tail;
+    int page_num;
+
+    MetaData() {
+        head = nullptr;
+        prev_tail = nullptr;
+        tail = nullptr;
+    }
+
+    void get_meta() {
+        FILE *fp = fopen("storage/0", "rb");
+        if (!fp) {
+            return;
+        }
+        unsigned long long k1;
+        meta **cur = &head;
+        page_num = 1;
+        while (fread(&k1, 8, 1, fp)) {
+            meta *m = new meta;
+            m->start = k1;
+            fread(&(m->end), 8, 1, fp);
+            fread(&(m->key_num), 4, 1, fp);
+            m->bloom = new bloomfilter;
+            fread(m->bloom->table, m->bloom->size, 1, fp);
+            m->next = nullptr;
+            m->page = page_num++;
+            if (*cur == nullptr) {
+                *cur = m;
+            } else {
+                (*cur)->next = m;
+                cur = &m;
+            }
+            prev_tail = tail;
+            tail = *cur;
+        }
+    }
+
+    void show() {
+        for (meta *m = head; m != nullptr; m = m->next) {
+            printf("start: %llu, end: %llu, key_num: %d, page: %d\n",
+                    m->start, m->end, m->key_num, m->page);
+        }
+    }
+};
+
 
 class DataBase {
 public:
-    struct node {
-        unsigned long long *key;
-        char *value;
-        node *right[4];
-    };
-    struct meta {
-        unsigned long long start, end;
-        int key_num, page_num;
-        bloomfilter* bloom;
-        meta* next;
-    };
-
+    MetaData Meta;
     node *head;
     meta *meta_head;
     bloomfilter* bloom;
     char* in_file, *out_file, *txtbuff;
-    int out_fd, key_num, page_num;
+    int key_num, page_num;
     size_t text_size;
 
     DataBase(char* in_name)
@@ -43,7 +94,7 @@ public:
         srand(time(NULL));
         bloom = new bloomfilter;
         key_num = 0;  // key number in skiplist
-        page_num = 1;     // page index of current skiplist
+        page_num = 1; // page index of current skiplist
 
         /* create skip list */
         meta_head = nullptr;
@@ -70,28 +121,49 @@ public:
         txtbuff = new char[MAXTEXT];
     }
 
-    /* return key in skiplist */
-    node* mem_search(unsigned long long k)
-    {
-        int level = 3;
-        node* cur = head;
-        while (level) {
-            if (cur->right[level] == nullptr || k < *(cur->right[level]->key)) {
-                level--;
-            } else {
-                cur = cur->right[level];
+    void get_data() {
+        if (Meta.tail == nullptr || Meta.tail->key_num == MAXKEYS)
+            return;
+
+        page_num = Meta.tail->page;
+        char fname[15];
+        sprintf(fname, "storage/%d", page_num);
+        FILE *fp = fopen(fname, "rb");
+        node* cursor[4];
+        cursor[3] = head;
+        cursor[2] = head;
+        cursor[1] = head;
+        cursor[0] = head;
+
+        for (int i = 0; i < key_num; i++) {
+            /* level 0 */
+            node* new_node = new node;
+            new_node->key = new unsigned long long;
+            new_node->value = new char[128];
+            fread(new_node->key, 8, 1, fp);
+            fread(new_node->value, 128, 1, fp);
+            cursor[0]->right[0] = new_node;
+            cursor[0] = new_node;
+            bloom->bloom_add(new_node->key);
+
+            /* other levels */
+            new_node->right[0] = nullptr;
+            new_node->right[1] = nullptr;
+            new_node->right[2] = nullptr;
+            new_node->right[3] = nullptr;
+            short cnt = 1;
+            while (cnt < 4 && (rand() & 1)) {
+                cursor[cnt]->right[cnt] = new_node;
+                cursor[cnt] = new_node;
+                cnt++;
             }
         }
-        while (cur->right[0] != nullptr && k >= *(cur->right[0]->key)) {
-            cur = cur->right[0];
-        }
-        return cur;
     }
 
     void put2(unsigned long long k, char* v)
     {
         /* check if the key is in skiplist */
-        int level = 3;
+        int level = 3, searchflag = 0;
         node* cursor[4];
         cursor[3] = head;
         if (bloom->bloom_get(&k)) {
@@ -112,14 +184,14 @@ public:
                 return;
             }
             /* false positive occurs */
+            searchflag = 1;
         }
 
         /* check if the key is in disk */
-        int meta_idx = 1;
-        for (meta* m = meta_head; m != nullptr; m = m->next, meta_idx++) {
+        for (meta* m = Meta.head; m != nullptr; m = m->next) {
             if (k >= m->start && k <= m->end && m->bloom->bloom_get(&k)) {
                 char file_str[15];
-                sprintf(file_str, "storage/%d", meta_idx);
+                sprintf(file_str, "storage/%d", m->page);
                 FILE *fp = fopen(file_str, "rb");
                 unsigned long long *tmp_key;
                 while(1) {
@@ -138,53 +210,17 @@ public:
 
         /* key in neither disk nor skiplist */
         /* then put it into skiplist*/
-        unsigned long long *new_k = new unsigned long long(k);
-        char* new_v = strdup(v);
-        bloom->bloom_add(&k);
-        key_num++;
-
-        /* level 0 */
-        node* new_node = new node;
-        new_node->key = new_k;
-        new_node->value = new_v;
-        new_node->right[0] = cursor[0]->right[0];
-        cursor[0]->right[0] = new_node;
-        cursor[0] = new_node;
-         
-        /* other levels */
-        new_node->right[1] = nullptr;
-        new_node->right[2] = nullptr;
-        new_node->right[3] = nullptr;
-        short cnt = 1;
-        while (cnt < 4 && (rand() & 1)) {
-            new_node->right[cnt] = cursor[cnt]->right[cnt];
-            cursor[cnt]->right[cnt] = new_node;
-            cnt++;
-        }
-    }
-
-    void put(unsigned long long k, char* v)
-    {
-        /* searching */
-        int level = 3;
-        node* cursor[4];
-        cursor[3] = head;
-
-        while(level) {
-            if (cursor[level]->right[level] == nullptr || k < *(cursor[level]->right[level]->key)) {
-                cursor[level-1] = cursor[level];
-                level--;
-            } else {
-                cursor[level] = cursor[level]->right[level];
+        if (!searchflag) {
+            while(level) {
+                if (cursor[level]->right[level] == nullptr || k < *(cursor[level]->right[level]->key)) {
+                    cursor[level-1] = cursor[level];
+                    level--;
+                } else {
+                    cursor[level] = cursor[level]->right[level];
+                }
             }
-        }
-        while (cursor[0]->right[0] != nullptr && k >= *(cursor[0]->right[0]->key))
-            cursor[0] = cursor[0]->right[0];
-        
-        /* if the same key, then replace the value */
-        if (cursor[0]->key && *(cursor[0]->key) == k) {
-            strcpy(cursor[0]->value, v);
-            return;
+            while (cursor[0]->right[0] != nullptr && k > *(cursor[0]->right[0]->key))
+                cursor[0] = cursor[0]->right[0];            
         }
 
         unsigned long long *new_k = new unsigned long long(k);
@@ -210,6 +246,53 @@ public:
             cursor[cnt]->right[cnt] = new_node;
             cnt++;
         }
+        show();
+    }
+    
+    /* flush skiplist to disk and add meta data */
+    void flush_data() {
+        node* p = head->right[0];
+        meta *m = new meta;
+
+        m->bloom = bloom;
+        m->start = *(p->key);
+        char fname[15] = "storage/", num_str[6];
+        sprintf(num_str, "%d", page_num);
+        strcat(fname, num_str);
+        FILE *fp = fopen(fname, "wb");
+        for (; p->right[0] != nullptr;) {
+            fwrite(p->key, 8, 1, fp);
+            fwrite(p->value, 128, 1, fp);
+            node* del = p;
+            p = p->right[0];
+            delete del->key;
+            delete[] del->value;
+            delete del;
+        }
+        fwrite(p->key, 8, 1, fp);
+        fwrite(p->value, 128, 1, fp);
+
+        m->end = *(p->key);
+        m->key_num = key_num;
+        m->page = page_num;
+        m->next = nullptr;
+        if (Meta.tail != nullptr)
+            Meta.tail->next = m;
+        else {
+            Meta.head = m;
+            Meta.tail = m;
+        }    
+        delete p->key;
+        delete[] p->value;
+        delete p;
+
+        head->right[0] = nullptr;
+        head->right[1] = nullptr;
+        head->right[2] = nullptr;
+        head->right[3] = nullptr;
+        key_num = 0;
+        page_num++;
+        fclose(fp);
     }
 
     void get(unsigned long long k)
@@ -292,39 +375,6 @@ public:
         fwrite(txtbuff + 1, 1, text_size - 1, fp);
         fclose(fp);
         text_size = 0;
-    }
-
-    void mem_to_disk()
-    {
-        node* p = head->right[0];
-        if (!p) {
-            return;    
-        }
-
-        meta *m;
-        if (meta_head == nullptr) {
-            meta_head = new meta;
-            meta_head->next = nullptr;
-            m = meta_head;
-        } else {
-            for (m = meta_head; m->next != nullptr; m = m->next);
-            m->next = new meta;
-            m = m->next;
-            m->next = nullptr;
-        }
-
-        m->bloom = bloom;
-        m->start = *(p->key);
-        FILE *fp = fopen("storage/1", "wb");
-        for (; p->right[0] != nullptr; p = p->right[0]) {
-            fwrite(p->key, 8, 1, fp);
-            fwrite(p->value, 128, 1, fp);
-        }
-        fwrite(p->key, 8, 1, fp);
-        fwrite(p->value, 128, 1, fp);
-        m->end = *(p->key);
-        m->key_num = key_num;
-        fclose(fp);
     }
 
     void mem_from_disk()
@@ -420,6 +470,7 @@ public:
     void show()
     {
         node* cursor = head->right[0];
+        printf("key num: %d\n", key_num);
         while(cursor != nullptr) {
             printf ("%20llu  X", *(cursor->key));
             if (cursor->right[1])
