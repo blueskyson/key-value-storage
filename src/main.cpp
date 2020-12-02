@@ -2,7 +2,7 @@
 #include "kvs.h"
 
 /* turn a char array into unsigned long long */
-unsigned long long  fast_atoull(const char *str)
+unsigned long long fast_atoull(const char *str)
 {
     unsigned long long val = 0;
     while (*str) {

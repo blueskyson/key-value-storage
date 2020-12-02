@@ -1,53 +1,19 @@
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>     //open
-#include <sys/mman.h>  //mmap
-#include <sys/stat.h>
-#include <stdlib.h>
-
 #include "bench.h"
 #include "kvs.h"
 
-int main(int argc, char *argv[])
+/* turn a char array into unsigned long long */
+unsigned long long fast_atoull(const char *str)
 {
-    char *in_file = argv[1];
-    char *out_file = new char[15];
-    unsigned long long idx = strlen(in_file) - 5;
-    while (idx != 0 && in_file[idx - 1] != '/') {
-        idx--;
+    unsigned long long val = 0;
+    while (*str) {
+        val = (val << 1) + (val << 3) + (*(str++) - 48);
     }
-    int idx2 = 0;
-    while (in_file[idx] != '.') {
-        out_file[idx2++] = in_file[idx++];
-    }
-    memcpy(out_file + idx2, ".output\0", 8);
+    return val;
+}
 
+int main(int argc, char *argv[]) {
     double start, end; //
     start = tvgetf();  //
-    FILE *input = fopen(in_file, "r");
-    if (!input) {
-        puts("cannot open input file");
-        return 0;
-    }
-    char insbuff[5];
-    char keybuff1[20], keybuff2[20];
-    char valbuff[129];
-    const char *PUT = "PUT";
-    const char *GET = "GET";
-    const char *SCAN = "SCAN";
-    idx = 0;
-    while (fscanf(input, "%s", insbuff) != EOF) {
-        if (strcmp(insbuff, PUT) == 0) {
-            fscanf(input, "%s", keybuff1);
-            fscanf(input, "%s", valbuff);
-        } else if (strcmp(insbuff, GET) == 0){
-            fscanf(input, "%s", keybuff1);
-        } else {
-            fscanf(input, "%s", keybuff1);
-            fscanf(input, "%s", keybuff2);
-        }
-    }
-    end = tvgetf();
-    printf("\ntime: %lf\n", end - start);
-    return 0;
+    DataBase database(argv[1]);
+
 }

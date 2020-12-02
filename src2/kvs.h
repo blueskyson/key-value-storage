@@ -13,6 +13,7 @@
 #include "bloom.h"
 
 #define MAXTEXT 1000000
+#define MAXKEY_IN_PAGE 10
 #define FULLTEXT 999800
 const char ENDCHAR = (char) 0x0a;
 
@@ -131,7 +132,7 @@ public:
                     } else {
                         break;
                     }
-                };
+                }
             }
         }
 

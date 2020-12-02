@@ -34,7 +34,9 @@ public:
     meta *meta_head;
     bloomfilter* bloom;
     char* in_file, *out_file, *txtbuff;
-    int out_fd, key_num, page;
+    int out_fd;
+    int key_num;  // amount of key
+    int page;
     size_t text_size;
 
     DataBase(char* in_name)
@@ -320,6 +322,7 @@ public:
                 cur = &m;
             }
         }
+        fclose(fp);
     }
 
     void show()

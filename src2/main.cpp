@@ -61,10 +61,10 @@ int main(int argc, char *argv[])
                 }
                 valbuff[128] = '\0';
                 idx++;
-
                 database.put2(fast_atoull(keybuff1), valbuff);
             break;
         }
+        getchar();
     }
     return 0;
 }

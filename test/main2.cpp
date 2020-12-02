@@ -4,7 +4,7 @@
 #define MAXCHAR 128
 
 int main() {
-    const char* file_name = "../input.txt";
+    const char* file_name = "../../input.txt";
     char buffer[MAXCHAR];
     char **line = new char*[100];
     int linenum = 0;

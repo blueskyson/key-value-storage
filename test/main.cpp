@@ -28,7 +28,7 @@ int main()
     struct stat s;
     int status;
     size_t size;
-    const char* file_name = "../input.txt";
+    const char* file_name = "../../input.txt";
     const char* mapped;
     int i;
     double start, end;
@@ -43,6 +43,13 @@ int main()
 
     mapped = (const char*) mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
     //check(mapped == MAP_FAILED, "mmap %s failed: %s", file_name, strerror(errno));
+    char c;
+    printf("%ld\n", s.st_size);
+    for (long long int i = 0; i < s.st_size; i++) {
+        c = mapped[i];
+    }
+    printf("%c\n", mapped[s.st_size - 2]);
+
     end = tvgetf();
     printf("\ntime: %lf\n", end - start);
     close(fd);
