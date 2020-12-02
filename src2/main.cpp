@@ -11,6 +11,9 @@ int main(int argc, char *argv[])
     if (access("storage/0", F_OK) == 0) {
         database.meta_from_disk();
         database.mem_from_disk();
+        // test
+        database.Meta.get_meta();
+        database.Meta.show();
     }
 
     /* open input file */
@@ -37,8 +40,9 @@ int main(int argc, char *argv[])
     unsigned long long idx = 0;
 
     /* read instructions */
-    int debug = 2;
+    int debug = 12;
     while (idx < s.st_size && debug) {
+        getchar();
         debug--;
         insbuff = input_map[idx++];
         while (input_map[idx] != ' ') {
@@ -61,8 +65,10 @@ int main(int argc, char *argv[])
                 }
                 valbuff[128] = '\0';
                 idx++;
-
                 database.put2(fast_atoull(keybuff1), valbuff);
+                if (database.key_num == MAXKEYS) {
+                    database.flush_data();
+                }
             break;
         }
     }
