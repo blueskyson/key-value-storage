@@ -10,11 +10,10 @@
 #include <sys/mman.h>  //mmap
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "bloom.h"
 
-#define MAXTEXT 1000000
-#define FULLTEXT 999800
-#define MAXKEYS 10
+#define MAXKEYS 100000
 const char ENDCHAR = (char) 0x0a;
 
 struct node {
@@ -29,6 +28,48 @@ struct meta {
     bloomfilter* bloom;
     meta* next;
 };
+
+struct child_data {
+    char **line;
+    unsigned long long start, end;
+    int page;
+};
+
+void *scan_child(void *args)
+{
+    child_data* cd = (child_data*) args;
+    char file_str[15];
+    sprintf(file_str, "storage/%d", cd->page);
+    struct stat s;
+    int fd = open(file_str, O_RDONLY);
+    int status = fstat(fd, &s);
+    int key_n = 0;
+    char *map = (char*) mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    unsigned idx = 0;
+    while (key_n < MAXKEYS) {
+        unsigned long long* tmp = (unsigned long long*)(map + idx);
+        if (cd->start <= *tmp ) {
+            break;
+        }
+        idx += 136;
+        key_n++;
+    }
+
+    while (key_n < MAXKEYS) {
+        unsigned long long* tmp = (unsigned long long*)(map + idx);
+        if (*tmp > cd->end) {
+            break;
+            
+        }
+        cd->line[*tmp - cd->start] = new char[128];
+        memcpy(cd->line[*tmp - cd->start], map + (idx + 8), 128);
+        idx += 136;
+        key_n++;
+    }
+    munmap(map, s.st_size);
+    close(fd);
+    pthread_exit(NULL);
+}
 
 class MetaData {
 public:
@@ -58,7 +99,6 @@ public:
             memcpy(m->bloom->table, (map + idx + 20), 131072);
             m->next = nullptr;
             m->page = page_num++;
-            printf("%d,\n", m->page);
             if (head == nullptr) {
                 head = m;
                 cur = m;
@@ -145,11 +185,10 @@ public:
     MetaData Meta;
     node *head;
     bloomfilter* bloom;
-    char* in_file, *out_file, *txtbuff;
     int key_num, page_num;
     size_t text_size;
 
-    DataBase(char* in_name)
+    DataBase()
     {
         srand(time(NULL));
         bloom = new bloomfilter;
@@ -158,26 +197,10 @@ public:
 
         /* create skip list */
         head = new node;
+        head->key = nullptr;
         for (int i = 0; i < 4; i++) {
-            head->key = nullptr;
             head->right[i] = nullptr;
         }
-        
-        /* generate output filename */
-        in_file = strdup(in_name);
-        out_file = new char[16];
-        int ii = strlen(in_file) - 5;
-        while (ii != 0 && in_file[ii - 1] != '/') {
-            ii--;
-        }
-        int idx2 = 0;
-        while (in_file[ii] != '.') {
-            out_file[idx2++] = in_file[ii++];
-        }
-        memcpy(out_file + idx2, ".output\0", 8);
-        
-        text_size = 0;
-        txtbuff = new char[MAXTEXT];
     }
 
     void get_data() {
@@ -291,7 +314,8 @@ public:
         }
 
         unsigned long long *new_k = new unsigned long long(k);
-        char* new_v = strdup(v);
+        char* new_v = new char[128];
+        memcpy(new_v, v, 128);
         bloom->bloom_add(&k);
         key_num++;
 
@@ -381,7 +405,9 @@ public:
             
             /* the key is actually in skiplist */
             if (cur->key && *(cur->key) == k) {
-                return cur->value;
+                char *ret = new char[128];
+                memcpy(ret, cur->value, 128);
+                return ret;
             }
             /* false positive occurs */
             searchflag = 1;
@@ -417,55 +443,70 @@ public:
         return nullptr;
     }
 
-    void scan(unsigned long long k1, unsigned long long k2)
+    char** scan2(unsigned long long k1, unsigned long long k2)
     {
-        /* searching */
+        char **line = new char*[k2 - k1 + 1];
+        for (int i = 0; i <= k2 - k1; i++) {
+            line[i] = nullptr;
+        }
+        /* multithread to scan from disk */
+        child_data cdata[page_num];
+        pthread_t thread[page_num];
+        meta* p = Meta.head;
+        for (int i = 0; p != nullptr; p = p->next, i++) {
+            if (k1 > p->end || k2 < p->start) {
+                // not in this page
+                cdata[i].page = 0; 
+                continue;
+            }
+            cdata[i].line = line;
+            cdata[i].start = k1;
+            cdata[i].end = k2;
+            cdata[i].page = p->page;
+            pthread_create(&thread[i], NULL, scan_child, &cdata[i]);
+        }
+
+        /* scan from skiplist */
+        
+        /* empty list */
+        if (head->right[0] == nullptr || *(head->right[0]->key) > k2) {
+            for (int i = 0; i < page_num - 1; i++) {
+                if (cdata[i].page)
+                    pthread_join(thread[i], NULL);
+            }
+            return line;
+        }
+        //show();
         int level = 3;
-        node* cur;
-        cur = head;
-        while (level) {
+        node* cur = head;
+        while(level) {
             if (cur->right[level] == nullptr || k1 < *(cur->right[level]->key)) {
                 level--;
             } else {
                 cur = cur->right[level];
             }
         }
-        while (cur->right[0] != nullptr && k1 >= *(cur->right[0]->key)) {
+        while (cur->right[0] != nullptr && k1 >= *(cur->right[0]->key))
+            cur = cur->right[0];
+        //printf("%llu, %llu\n", *(cur->key), k1);
+        
+        if (!cur->key) {
             cur = cur->right[0];
         }
-
-        if (cur->key == nullptr) {
-            if (cur->right[0] == nullptr) {
-                for (; k1 <= k2; k1++) {
-                    memcpy(txtbuff + text_size, "\nEMPTY", 6);
-                    text_size += 6;
-                }
-                return;
-            }
-            cur = cur->right[0];
-        } else if (k1 > *(cur->key)) {
-            cur = cur->right[0];
-        }
-
-        for (; k1 <= k2; k1++) {
-            if (k1 == *(cur->key)) {
-                txtbuff[text_size++] = '\n';
-                memcpy(txtbuff + text_size, cur->value, 128);
-                text_size += 128;
+        if (k1 <= *(cur->key)) {
+            while (cur != nullptr && *(cur->key) <= k2) {
+                char *val = new char[128];
+                memcpy(val, cur->value, 128);
+                line[*(cur->key) - k1] = val;
                 cur = cur->right[0];
-            } else {
-                memcpy(txtbuff + text_size, "\nEMPTY", 6);
-                text_size += 6;
             }
         }
-    }
 
-    void save_output()
-    {
-        FILE *fp = fopen(out_file, "w");
-        fwrite(txtbuff + 1, 1, text_size - 1, fp);
-        fclose(fp);
-        text_size = 0;
+        for (int i = 0; i < page_num - 1; i++) {
+            if (cdata[i].page)
+                pthread_join(thread[i], NULL);
+        }
+        return line;
     }
 
     void show()
