@@ -27,10 +27,6 @@ public:
         memset(table, 0, size);
     }
 
-    ~bloomfilter() {
-        delete[] table;
-    }
-
     unsigned int djb2(const void *_str)
     {
         const char *str = (const char*)_str;

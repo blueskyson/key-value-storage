@@ -83,20 +83,6 @@ public:
         page_num = 1;
     }
 
-    ~MetaData() {
-        meta *del, *next;
-        for (del = head; del;) {
-            next = del->next;
-            delete del->bloom;
-            delete del;
-            del = next;
-        }
-        if (not_full) {
-            delete not_full->bloom;
-            delete not_full;
-        }
-    }
-
     void get_meta() {
         meta *cur = head, *prev_tail;
         struct stat s;
@@ -217,12 +203,6 @@ public:
         }
     }
 
-    ~DataBase()
-    {
-        delete head;
-        delete bloom;
-    }
-
     void get_data() {
         if (Meta.not_full == nullptr || Meta.not_full->key_num == MAXKEYS) {
             return;
@@ -286,7 +266,7 @@ public:
             
             /* the key is actually in skiplist */
             if (cursor[0]->key && *(cursor[0]->key) == k) {
-                memcpy(cursor[0]->value, v, 128);
+                strcpy(cursor[0]->value, v);
                 return;
             }
             /* false positive occurs */

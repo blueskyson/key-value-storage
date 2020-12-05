@@ -57,41 +57,31 @@ int main(int argc, char *argv[])
         database.get_data();
     }
 
-    /* open input file */
-    struct stat s;
-    int fd = open(argv[1], O_RDONLY);
-    if (fd < 0) {
-        puts("cannot open iniput file");
-        return 0;
-    }
-    int status = fstat(fd, &s);
-    if (status < 0) {
-        puts("cannot get status of iniput file");
-        return 0;
-    }
-    char *input_map = (char*) mmap(0, s.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    input_map[s.st_size] = ENDCHAR;
-
     /* init */
     char insbuff;
     char keybuff1[20], keybuff2[20];
     char valbuff[129];
-    const char PUT = 'P';
-    const char GET = 'G';
-    const char SCAN = 'S';
-    unsigned long long idx = 0;
-    pthread_t print_thread;
-    out_data out;
-    out.feeding = new bool(true);
-    out.queue = new deque<char*>;
-    out.in_name = argv[1];
+    const char PUT = 'p';
+    const char GET = 'g';
+    const char SCAN = 's';
+    const char QUIT = 'q';
+    // pthread_t print_thread;
+    // out_data out;
+    // out.feeding = new bool(true);
+    // out.queue = new deque<char*>;
+    // out.in_name = argv[1];
 
-    pthread_create(&print_thread, NULL, print_routine, &out);
+    // pthread_create(&print_thread, NULL, print_routine, &out);
     /* read instructions */
-    while (idx < s.st_size) {
-        char c;
-        insbuff = input_map[idx++];
-        while (input_map[idx] != ' ') {
+    bool loop = true;
+    while (loop) {
+        int idx = 0;
+        char input[140];
+        memset(input, 0, 140);
+        printf("> ");
+        scanf(" %[^\n]", input);
+        insbuff = input[0];
+        while (input[idx] != ' ') {
             idx++;
         }
         idx++;
@@ -102,15 +92,18 @@ int main(int argc, char *argv[])
             unsigned long long key1, key2;
             case PUT:
                 /* get key */
-                while (input_map[idx] != ' ') {
-                    keybuff1[kidx1++] = input_map[idx++];
+                while (input[idx] != ' ') {
+                    keybuff1[kidx1++] = input[idx++];
                 }
                 idx++;
                 keybuff1[kidx1] = '\0';
 
                 /* get value */
                 for (int i = 0; i < 128; i++, idx++) {
-                    valbuff[i] = input_map[idx];
+                    if (input[idx] == '\0')
+                        valbuff[i] = '-';
+                    else
+                        valbuff[i] = input[idx];
                 }
                 valbuff[128] = '\0';
                 idx++;
@@ -121,25 +114,30 @@ int main(int argc, char *argv[])
                 break;
             
             case GET:
-                while (input_map[idx] != ENDCHAR) {
-                    keybuff1[kidx1++] = input_map[idx++];
+                while (input[idx] != '\0') {
+                    keybuff1[kidx1++] = input[idx++];
                 }
-                idx++;
                 keybuff1[kidx1] = '\0';
                 str = database.get2(fast_atoull(keybuff1));
+                if (!str) {
+                    puts("EMPTY");
+                } else {
+                    puts(str);
+                }
                 /* print routine */
-                out.queue->push_back(str);
+                // out.queue->push_back(str);
+                // puts(str);
                 break;
 
             case SCAN:
-                while (input_map[idx] != ' ') {
-                    keybuff1[kidx1++] = input_map[idx++];
+                while (input[idx] != ' ') {
+                    keybuff1[kidx1++] = input[idx++];
                 }
                 idx++;
                 keybuff1[kidx1] = '\0';
 
-                while (input_map[idx] != ENDCHAR) {
-                    keybuff2[kidx2++] = input_map[idx++];
+                while (input[idx] != '\0') {
+                    keybuff2[kidx2++] = input[idx++];
                 }
                 idx++;
                 keybuff2[kidx2] = '\0';
@@ -149,18 +147,24 @@ int main(int argc, char *argv[])
                 line = database.scan2(key1, key2);
                 for (int i = 0; i <= key2 - key1; i++) {
                     /* print routine */
-                    out.queue->push_back(line[i]);
+                    // out.queue->push_back(line[i]);
+                    if (!line[i])
+                        puts("EMPTY");
+                    else
+                        puts(line[i]);
+
                 }
                 delete[] line;
                 break;
+            case QUIT:
+                loop = false;
+                break;
         }
     }
-    *out.feeding = false;
+    // *out.feeding = false;
     database.flush_data();
     database.Meta.flush_meta();
-    pthread_join(print_thread, NULL);
-    delete out.feeding;
-    delete out.queue;
+    // pthread_join(print_thread, NULL);
     end = tvgetf();
     printf("wall clock time: %lf\n", end - start);
     return 0;
