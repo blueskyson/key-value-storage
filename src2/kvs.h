@@ -59,7 +59,6 @@ void *scan_child(void *args)
         unsigned long long* tmp = (unsigned long long*)(map + idx);
         if (*tmp > cd->end) {
             break;
-            
         }
         cd->line[*tmp - cd->start] = new char[128];
         memcpy(cd->line[*tmp - cd->start], map + (idx + 8), 128);
@@ -262,8 +261,8 @@ public:
             }
         }
         fclose(fp);
-        remove(fname);
-        remove("storage/0");
+        //remove(fname);
+        //remove("storage/0");
     }
 
     void put2(unsigned long long k, char* v)
@@ -294,25 +293,46 @@ public:
         }
 
         /* check if the key is in disk */
+        unsigned hash1 = bloomfilter::djb2(&k);
+        unsigned hash2 = bloomfilter::jenkins(&k);
         for (meta* m = Meta.head; m != nullptr; m = m->next) {
-            if (k >= m->start && k <= m->end && m->bloom->bloom_get(&k)) {
+            if (k >= m->start && k <= m->end && m->bloom->bloom_get2(hash1, hash2)) {
                 char file_str[15];
                 sprintf(file_str, "storage/%d", m->page);
                 struct stat s;
                 int fd = open(file_str, O_RDWR);
                 int status = fstat(fd, &s);
                 char *map = (char*) mmap(0, s.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-                unsigned idx = 0;
-                while (idx < s.st_size) {
+                
+                /* binary search */
+                unsigned int low = 0, high = MAXKEYS - 1;
+                while (low <= high) {
+                    int mid = (low + high) / 2;
+                    int idx = (mid << 7) + (mid << 3); // mid * 136
                     unsigned long long* tmp = (unsigned long long*)(map + idx);
-                    if (*tmp == k) {
+                    if (*tmp < k) {
+                        low = mid + 1;
+                    } else if (*tmp > k) {
+                        high = mid - 1;
+                    } else {
                         memcpy(map + (idx + 8), v, 128);
                         munmap(map, s.st_size);
                         close(fd);
                         return;
                     }
-                    idx += 136;
                 }
+                
+                // unsigned idx = 0;
+                // while (idx < s.st_size) {
+                //     unsigned long long* tmp = (unsigned long long*)(map + idx);
+                //     if (*tmp == k) {
+                //         memcpy(map + (idx + 8), v, 128);
+                //         munmap(map, s.st_size);
+                //         close(fd);
+                //         return;
+                //     }
+                //     idx += 136;
+                // }
                 munmap(map, s.st_size);
                 close(fd);
             }
@@ -434,8 +454,10 @@ public:
         }
 
         /* check if the key is in disk */
+        unsigned hash1 = bloomfilter::djb2(&k);
+        unsigned hash2 = bloomfilter::jenkins(&k);
         for (meta* m = Meta.head; m != nullptr; m = m->next) {
-            if (k >= m->start && k <= m->end && m->bloom->bloom_get(&k)) {
+            if (k >= m->start && k <= m->end && m->bloom->bloom_get2(hash1, hash2)) {
                 char file_str[15];
                 sprintf(file_str, "storage/%d", m->page);
                 struct stat s;
@@ -463,6 +485,84 @@ public:
         return nullptr;
     }
 
+    char* get3(unsigned long long k) {
+        /* check if the key is in skiplist */
+        int level = 3, searchflag = 0;
+        node* cur = head;
+        if (bloom->bloom_get(&k)) {
+            while(level) {
+                if (cur->right[level] == nullptr || k < *(cur->right[level]->key)) {
+                    level--;
+                } else {
+                    cur = cur->right[level];
+                }
+            }
+            while (cur->right[0] != nullptr && k >= *(cur->right[0]->key))
+                cur = cur->right[0];
+            
+            /* the key is actually in skiplist */
+            if (cur->key && *(cur->key) == k) {
+                char *ret = new char[128];
+                memcpy(ret, cur->value, 128);
+                return ret;
+            }
+            /* false positive occurs */
+            searchflag = 1;
+        }
+
+        /* check if the key is in disk */
+        unsigned hash1 = bloomfilter::djb2(&k);
+        unsigned hash2 = bloomfilter::jenkins(&k);
+        for (meta* m = Meta.head; m != nullptr; m = m->next) {
+            if (k >= m->start && k <= m->end && m->bloom->bloom_get2(hash1, hash2)) {
+                char file_str[15];
+                sprintf(file_str, "storage/%d", m->page);
+                struct stat s;
+                int fd = open(file_str, O_RDONLY);
+                int status = fstat(fd, &s);
+                char *map = (char*) mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0);
+                unsigned idx = 0;
+                
+                /* binary search */
+                int low = 0, high = MAXKEYS - 1;
+                while (low <= high) {
+                    int mid = (low + high) / 2;
+                    int idx = (mid << 7) + (mid << 3); // mid * 136
+                    unsigned long long* tmp = (unsigned long long*)(map + idx);
+                    if (*tmp < k) {
+                        low = mid + 1;
+                    } else if (*tmp > k) {
+                        high = mid - 1;
+                    } else {
+                        char *ret = new char[128];
+                        memcpy(ret, map + (idx + 8), 128);
+                        munmap(map, s.st_size);
+                        close(fd);
+                        return ret;
+                    }
+                }
+
+                // while (idx < s.st_size) {
+                //     unsigned long long* tmp = (unsigned long long*)(map + idx);
+                //     if (*tmp == k) {
+                //         char *ret = new char[128];
+                //         memcpy(ret, map + (idx + 8), 128);
+                //         munmap(map, s.st_size);
+                //         close(fd);
+                //         return ret;
+                //     }
+                //     idx += 136;
+                // }
+                munmap(map, s.st_size);
+                close(fd);
+            }
+        }
+
+        /* key in neither disk nor skiplist */
+        return nullptr;
+    }
+
+    /* exists bug to fix */
     char** scan2(unsigned long long k1, unsigned long long k2)
     {
         char **line = new char*[k2 - k1 + 1];
@@ -510,7 +610,7 @@ public:
             cur = cur->right[0];
         //printf("%llu, %llu\n", *(cur->key), k1);
         
-        if (!cur->key) {
+        if (!cur->key || *(cur->key) < k1) {
             cur = cur->right[0];
         }
         if (k1 <= *(cur->key)) {

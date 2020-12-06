@@ -5,8 +5,8 @@ public:
     unsigned int size, complement;
     unsigned char *table;
     bloom() {
-        size = 65536 * 2;
-        complement = 15; // 32 - log2(size)
+        size = 1 << 18;
+        complement = 14; // 32 - log2(size)
         table = new unsigned char[size];
         memset(table, 0, size);
     }

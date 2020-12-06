@@ -27,6 +27,9 @@ void *print_routine(void *args) {
         if ((*shared->queue).empty()) {
             if (*shared->feeding == false) {
                 fclose(fp);
+                if (write == 0) {
+                    remove(out_file);
+                }
                 pthread_exit(NULL);
             }
             continue;
@@ -126,7 +129,7 @@ int main(int argc, char *argv[])
                 }
                 idx++;
                 keybuff1[kidx1] = '\0';
-                str = database.get2(fast_atoull(keybuff1));
+                str = database.get3(fast_atoull(keybuff1));
                 /* print routine */
                 out.queue->push_back(str);
                 break;
@@ -146,10 +149,13 @@ int main(int argc, char *argv[])
                 key1 = fast_atoull(keybuff1);
                 key2 = fast_atoull(keybuff2);
                 
-                line = database.scan2(key1, key2);
-                for (int i = 0; i <= key2 - key1; i++) {
-                    /* print routine */
-                    out.queue->push_back(line[i]);
+                // line = database.scan2(key1, key2);
+                // for (int i = 0; i <= key2 - key1; i++) {
+                //     /* print routine */
+                //     out.queue->push_back(line[i]);
+                // }
+                for (unsigned long long i = key1; i <= key2; i++) {
+                    out.queue->push_back(database.get2(i));
                 }
                 delete[] line;
                 break;

@@ -31,7 +31,7 @@ public:
         delete[] table;
     }
 
-    unsigned int djb2(const void *_str)
+    static unsigned int djb2(const void *_str)
     {
         const char *str = (const char*)_str;
         unsigned int hash = 5381;
@@ -43,7 +43,7 @@ public:
         return hash;
     }
 
-    unsigned int jenkins(const void *_str)
+    static unsigned int jenkins(const void *_str)
     {
         const char *key = (const char*)_str;
         unsigned int hash = 0;
@@ -75,6 +75,17 @@ public:
         }
         hash = jenkins(k);
         if (!(table[hash >> complement] & (0x80 >> (hash & 7)))) {
+            return false;
+        }
+        return true;
+    }
+
+    /* compute hash in advanced */
+    bool bloom_get2(unsigned int hash1, unsigned int hash2) {
+        if (!(table[hash1 >> complement] & (0x80 >> (hash1 & 7)))) {
+            return false;
+        }
+        if (!(table[hash2 >> complement] & (0x80 >> (hash2 & 7)))) {
             return false;
         }
         return true;

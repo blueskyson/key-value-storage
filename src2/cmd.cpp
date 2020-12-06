@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
                     keybuff1[kidx1++] = input[idx++];
                 }
                 keybuff1[kidx1] = '\0';
-                str = database.get2(fast_atoull(keybuff1));
+                str = database.get3(fast_atoull(keybuff1));
                 if (!str) {
                     puts("EMPTY");
                 } else {
@@ -144,14 +144,15 @@ int main(int argc, char *argv[])
                 key1 = fast_atoull(keybuff1);
                 key2 = fast_atoull(keybuff2);
                 
-                line = database.scan2(key1, key2);
-                for (int i = 0; i <= key2 - key1; i++) {
+                //line = database.scan2(key1, key2);
+                for (unsigned long long i = key1; i <= key2; i++) {
                     /* print routine */
                     // out.queue->push_back(line[i]);
-                    if (!line[i])
+                    str = database.get2(i);
+                    if (!str)
                         puts("EMPTY");
                     else
-                        puts(line[i]);
+                        puts(str);
 
                 }
                 delete[] line;
