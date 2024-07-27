@@ -2,7 +2,11 @@
 
 ## Overview
 
-A simple key-value storage program written in C. 
+Key Value Storage is an assignment of *CSIE3006 - Operating System* by [Hung-Chang Hsiao](https://www.csie.ncku.edu.tw/en/members/27) at National Cheng Kung University. In this assignment, I made a single-threaded key value storage in C++. In this assignment, I referenced famous key-value storage projects such as [LevelDB](https://en.wikipedia.org/wiki/LevelDB) and other search and storage algorithms, and utilized [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter), [skip list](https://en.wikipedia.org/wiki/Skip_list), [sorted string tables (SSTable)](https://www.scylladb.com/glossary/sstable/), and [binary search](https://en.wikipedia.org/wiki/Binary_search) to enhance the speed of database searches. As a result, I achieved the second-highest grade in this assignment.
+
+Now, I am rewriting this assignment in [object-oriented techniques in C](https://dmitryfrank.com/articles/oop_in_c), ensuring clean code and adhering to SOLID principles. There are still a few memory leaks detected in this program, and I am currently working on fixing them.
+
+Website: [https://jacklinweb.github.io/posts/key-value-storage/](https://jacklinweb.github.io/posts/key-value-storage/)
 
 ## Prerequisites
 
