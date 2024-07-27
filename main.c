@@ -6,6 +6,7 @@ int main(int argc, char *argv[])
 {
     Kvs *kvs = NULL;
     if (init_kvs(&kvs) == -1) {
+        destruct_kvs(kvs);
         return -1;
     }
 
@@ -60,5 +61,6 @@ int main(int argc, char *argv[])
     fclose(input_file);
     fclose(output_file);
     kvs->save_to_disk(kvs);
+    destruct_kvs(kvs);
     return 0;
 }

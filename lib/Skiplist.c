@@ -86,3 +86,20 @@ int init_skiplist(Skiplist **self)
     (*self)->rand_mask[3] = 15;
     return 0;
 }
+
+void destruct_skiplist(Skiplist *self)
+{
+    if (!self)
+        return;
+    SkiplistNode *p = self->head->right[0];
+    for (; p != NULL;) {
+        SkiplistNode *del = p;
+        p = p->right[0];
+        free(del->key);
+        free(del->value);
+        free(del);
+    }
+
+    free(self->head);
+    free(self);
+}

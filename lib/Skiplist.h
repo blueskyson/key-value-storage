@@ -4,6 +4,7 @@ typedef SkiplistNode* (*skiplist_find_func_t)(Skiplist *self, unsigned long long
 typedef int (*skiplist_insert_func_t)(Skiplist *self, unsigned long long key, char *value);
 
 int init_skiplist(Skiplist **self);
+void destruct_skiplist(Skiplist *self);
 
 struct skiplist_node {
     unsigned long long *key;

@@ -11,6 +11,7 @@ typedef char* (*get_func_t)(Kvs *self, unsigned long long key);
 typedef void (*save_func_t)(Kvs *self);
 
 int init_kvs(Kvs **self);
+void destruct_kvs(Kvs *self);
 
 struct kvs {
     int keyCount, pageCount;

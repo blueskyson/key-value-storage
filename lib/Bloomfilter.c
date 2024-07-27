@@ -72,3 +72,13 @@ int init_bloomfilter(Bloomfilter **self)
     memset((*self)->table, 0, (*self)->size);
     return 0;
 };
+
+void destruct_bloomfilter(Bloomfilter *self)
+{
+    if (!self)
+        return;
+    if (self->table) {
+        free(self->table);
+    }
+    free(self);
+}

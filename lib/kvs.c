@@ -17,11 +17,9 @@ void logErr(char *msg)
 
 int put_impl(Kvs *self, unsigned long long key, char *value)
 {
-    if (self->bloomfilter->get(self->bloomfilter, key))
-    {
+    if (self->bloomfilter->get(self->bloomfilter, key)) {
         SkiplistNode *node = self->skiplist->find(self->skiplist, key);
-        if (node != NULL)
-        {
+        if (node != NULL) {
             memcpy(node->value, value, 128);
             return 0;
         }
@@ -42,11 +40,9 @@ char *get_impl(Kvs *self, unsigned long long key)
     char *value = malloc(129 * sizeof(char));
 
     /* check if the key is in skiplist */
-    if (self->bloomfilter->get(self->bloomfilter, key))
-    {
+    if (self->bloomfilter->get(self->bloomfilter, key)) {
         SkiplistNode *node = self->skiplist->find(self->skiplist, key);
-        if (node != NULL)
-        {
+        if (node != NULL) {
             memcpy(value, node->value, 128);
             value[128] = '\0';
             return value;
@@ -110,8 +106,7 @@ void save_latest_page(Kvs *self)
     char fname[15];
     sprintf(fname, "storage/%d", self->pageCount);
     FILE *fp = fopen(fname, "wb");
-    for (; p->right[0] != NULL;)
-    {
+    for (; p->right[0] != NULL;) {
         fwrite(p->key, 8, 1, fp);
         fwrite(p->value, 128, 1, fp);
         SkiplistNode *del = p;
@@ -126,13 +121,10 @@ void save_latest_page(Kvs *self)
     m->keyCount = self->keyCount;
     m->pageNum = self->pageCount;
     m->next = NULL;
-    if (self->metadataManager->tail != NULL)
-    {
+    if (self->metadataManager->tail != NULL) {
         self->metadataManager->tail->next = m;
         self->metadataManager->tail = m;
-    }
-    else
-    {
+    } else {
         self->metadataManager->head = m;
         self->metadataManager->tail = m;
     }
@@ -155,8 +147,7 @@ void save_metadata(Kvs *self)
     if (!p)
         return;
     FILE *fp = fopen("storage/metadata", "wb");
-    for (; p != NULL; p = p->next)
-    {
+    for (; p != NULL; p = p->next) {
         fwrite(&(p->start), 8, 1, fp);
         fwrite(&(p->end), 8, 1, fp);
         fwrite(&(p->keyCount), 4, 1, fp);
@@ -292,3 +283,11 @@ int init_kvs(Kvs **self)
     fclose(fp);
     return 0;
 };
+
+void destruct_kvs(Kvs *self)
+{
+    destruct_metadata_manager(self->metadataManager);
+    destruct_skiplist(self->skiplist);
+    destruct_bloomfilter(self->bloomfilter);
+    free(self);
+}

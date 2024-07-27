@@ -17,3 +17,20 @@ int init_metadata_manager(MetadataManager **self)
     (*self)->pageCount = 0;
     return 0;
 }
+
+void destruct_metadata_manager(MetadataManager *self)
+{
+    if (!self)
+        return;
+
+    MetadataNode *p = self->head;
+    while (p != NULL) {
+        MetadataNode *del = p;
+        p = p->next;
+        if (del->bloomfilter)
+            destruct_bloomfilter(del->bloomfilter);
+        free(del);
+    }
+
+    free(self);
+}
